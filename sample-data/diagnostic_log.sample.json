@@ -1,0 +1,198 @@
+{
+  "ReportGeneratedAt": "2026-04-15T09:53:26.4597918+02:00",
+  "Machine": "PUBLIC-DEMO-DEVICE",
+  "SystemInfo": {
+    "TotalMemoryGB": 16.0,
+    "AvailableMemoryGB": 6.25,
+    "ProcessorCount": 8,
+    "ProcessorName": "Intel Core i7 Demo",
+    "DiskDrives": [
+      {
+        "Drive": "C:\\",
+        "TotalSizeGB": 476.0,
+        "AvailableSpaceGB": 259.0,
+        "UsedSpaceGB": 217.0
+      }
+    ],
+    "OSVersion": "Windows 11 Pro",
+    "OSBuild": "26200",
+    "OSArchitecture": "64-bit",
+    "MachineName": "PUBLIC-DEMO-DEVICE",
+    "UserName": "demo-user",
+    "Success": true,
+    "Timestamp": "2026-04-15T09:53:26.4638635+02:00"
+  },
+  "ApplicationVersions": {
+    "ApoTune": {
+      "Name": "ApoTune",
+      "Path": "C:\\Program Files\\BlueBizz Software\\ApoTune\\ApoTune.exe",
+      "Found": true,
+      "Version": "4.29.0000",
+      "Source": "Registry (Installed Apps)"
+    },
+    "PaperFreePrinterWPF": {
+      "Name": "PaperFreePrinterWPF",
+      "Path": "C:\\Program Files\\BlueBizz Software\\PaperFreePrinter\\PaperFreePrinterWPF.exe",
+      "Found": true,
+      "Version": "1.7.2",
+      "Source": "EXE file",
+      "ProductVersion": "1.7.2"
+    },
+    "ApoTunePoint": {
+      "Name": "ApoTunePoint",
+      "Path": "C:\\ApoTunePoint\\ApoTunePoint.exe",
+      "Found": false,
+      "Version": "Unknown",
+      "Source": "Not found"
+    },
+    "Success": true,
+    "Timestamp": "2026-04-15T09:53:26.4707949+02:00"
+  },
+  "EventViewerErrors": {
+    "ApplicationEventErrors": [],
+    "Success": true,
+    "Timestamp": "2026-04-15T09:53:26.5405722+02:00"
+  },
+  "FileSystem": {
+    "UploadQueues": {
+      "PaperFree": {
+        "Name": "PaperFree Upload Queue",
+        "Path": "C:\\ProgramData\\BlueBizz\\ApoTune\\Plugin_Temp\\2004\\Upload",
+        "Exists": true,
+        "FileCount": 0,
+        "FolderCount": 0,
+        "OldestFileDate": null,
+        "NewestFileDate": null,
+        "TotalSizeBytes": 0
+      },
+      "Email": {
+        "Name": "Email Queue",
+        "Path": "C:\\ProgramData\\BlueBizz\\ApoTune\\Plugin_Temp\\1084\\EmailQueue",
+        "Exists": true,
+        "FileCount": 0,
+        "FolderCount": 0,
+        "OldestFileDate": null,
+        "NewestFileDate": null,
+        "TotalSizeBytes": 0
+      }
+    },
+    "Success": true,
+    "Timestamp": "2026-04-15T09:53:26.4636671+02:00"
+  },
+  "DllAndDriver": {
+    "ApoTunePlugins": {
+      "Path": "C:\\ProgramData\\BlueBizz\\ApoTune\\plugins",
+      "Exists": true,
+      "DllCount": 3,
+      "Dlls": [
+        {
+          "Name": "1002_67.dll",
+          "PluginId": 1002,
+          "PluginName": "Kunden-Suche",
+          "VersionFromFilename": "67"
+        },
+        {
+          "Name": "1008_82.dll",
+          "PluginId": 1008,
+          "PluginName": "Neuer Kunde",
+          "VersionFromFilename": "82"
+        },
+        {
+          "Name": "1075_58.dll",
+          "PluginId": 1075,
+          "PluginName": "News",
+          "VersionFromFilename": "58"
+        }
+      ]
+    },
+    "ScannerDrivers": {
+      "Dymo": {
+        "Name": "Dymo",
+        "Installed": true,
+        "Locations": [
+          "C:\\Program Files (x86)\\DYMO"
+        ]
+      }
+    },
+    "CardReaderDrivers": {
+      "Cherry KC1000": {
+        "Name": "Cherry",
+        "Installed": true,
+        "Locations": [
+          "C:\\Program Files (x86)\\CHERRY Utility Software"
+        ]
+      }
+    },
+    "Success": true,
+    "Timestamp": "2026-04-15T09:53:26.4662615+02:00"
+  },
+  "NetworkDiagnostics": {
+    "CommonPorts": {
+      "PortCount": 6,
+      "Ports": "3002, 3003, 8080, 50000, 80, 443",
+      "Description": "Common outgoing ports that should be open"
+    },
+    "ProcessWhitelist": {
+      "TotalProcesses": 5,
+      "ExistingProcesses": 3,
+      "Description": "EXE files that should be whitelisted in firewall rules"
+    },
+    "ExternalServers": [
+      {
+        "Name": "ApoTune Main Server",
+        "Hostname": "server.apotune.de",
+        "IPAddress": "195.4.138.148",
+        "Category": "Main",
+        "Ping": {
+          "Reachable": true,
+          "RoundtripMs": 30,
+          "Status": "Success"
+        },
+        "Ports": {
+          "3002": true,
+          "80": true,
+          "443": false
+        }
+      },
+      {
+        "Name": "API 6",
+        "Hostname": "api6.apotune.de",
+        "IPAddress": "195.4.138.220",
+        "Category": "API",
+        "Ping": {
+          "Reachable": true,
+          "RoundtripMs": 23,
+          "Status": "Success"
+        },
+        "Ports": {
+          "80": false,
+          "443": false
+        }
+      }
+    ],
+    "URLs": [
+      {
+        "Name": "ApoTune Main Server",
+        "URL": "https://server.apotune.de",
+        "Category": "Main",
+        "Reachable": true
+      },
+      {
+        "Name": "HERE Maps API",
+        "URL": "https://1.base.maps.cit.api.here.com",
+        "Category": "Maps",
+        "Reachable": true
+      }
+    ],
+    "Success": true,
+    "Timestamp": "2026-04-15T09:53:27.0059062+02:00"
+  },
+  "Timings": {
+    "SystemInfo": "1 ms",
+    "ApplicationVersions": "8 ms",
+    "WawiInfo": "9 ms",
+    "NetworkDiagnostics": "543 ms",
+    "TotalMs": 546
+  },
+  "DiagnosticsComplete": true
+}

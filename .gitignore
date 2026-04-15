@@ -1,0 +1,9 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+
+# Optional local data dumps
+*.tmp

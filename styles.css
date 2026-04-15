@@ -1,0 +1,287 @@
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --surface-soft: #f1f4f9;
+  --text: #17202a;
+  --muted: #536171;
+  --accent: #0a6e7a;
+  --accent-2: #d66c38;
+  --success: #148a52;
+  --danger: #c63737;
+  --border: #d7e0ea;
+  --shadow: 0 10px 30px rgba(23, 32, 42, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI Variable", "Bahnschrift", "Trebuchet MS", sans-serif;
+  color: var(--text);
+  background: radial-gradient(circle at 10% 15%, #e7f0ff 0%, transparent 36%),
+    radial-gradient(circle at 90% 10%, #ffe8d9 0%, transparent 34%),
+    var(--bg);
+  min-height: 100vh;
+  position: relative;
+}
+
+.bg-shape {
+  position: fixed;
+  z-index: -1;
+  border-radius: 50%;
+  filter: blur(48px);
+  opacity: 0.35;
+}
+
+.bg-shape-a {
+  width: 320px;
+  height: 320px;
+  left: -90px;
+  top: 40vh;
+  background: #a7d6dc;
+}
+
+.bg-shape-b {
+  width: 300px;
+  height: 300px;
+  right: -80px;
+  top: 8vh;
+  background: #ffc7a9;
+}
+
+.hero {
+  padding: 1.5rem 1rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 3.8vw, 2.2rem);
+  letter-spacing: 0.02em;
+}
+
+.hero p {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+}
+
+.hero-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+#fileInput {
+  display: none;
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1rem 2rem;
+}
+
+.btn {
+  border: 1px solid var(--border);
+  padding: 0.6rem 0.95rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 20px rgba(0, 0, 0, 0.12);
+}
+
+.btn-primary {
+  color: #fff;
+  border: none;
+  background: linear-gradient(120deg, var(--accent), #0d8593);
+}
+
+.btn-secondary {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.drop-zone {
+  background: var(--surface);
+  border: 2px dashed #93afc4;
+  border-radius: 16px;
+  padding: 1.2rem;
+  text-align: center;
+  color: var(--muted);
+  box-shadow: var(--shadow);
+}
+
+.drop-zone.dragging {
+  border-color: var(--accent);
+  background: #e9f8fb;
+}
+
+.status {
+  margin-top: 1rem;
+  min-height: 1.5rem;
+  font-weight: 600;
+}
+
+.status.error {
+  color: var(--danger);
+}
+
+.status.ok {
+  color: var(--success);
+}
+
+.summary-grid {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.8rem;
+  box-shadow: var(--shadow);
+  transform: translateY(8px);
+  opacity: 0;
+  animation: riseIn 360ms ease forwards;
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}
+
+.card p {
+  margin: 0.45rem 0 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.panel {
+  margin-top: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 0.9rem;
+  box-shadow: var(--shadow);
+}
+
+.panel h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.insights {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.insight {
+  background: var(--surface-soft);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+}
+
+.structured {
+  display: grid;
+  gap: 0.7rem;
+}
+
+details {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+summary {
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+  padding: 0.7rem 0.8rem;
+  background: #f9fbfe;
+}
+
+.summary-meta {
+  color: var(--muted);
+  font-weight: 500;
+  margin-left: 0.35rem;
+}
+
+.node-body {
+  padding: 0.7rem 0.8rem;
+}
+
+.kv {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.kv th,
+.kv td {
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  padding: 0.45rem;
+}
+
+.kv th {
+  width: 30%;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.array-meta {
+  color: var(--muted);
+  font-style: italic;
+}
+
+footer {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1rem 2rem;
+  color: var(--muted);
+}
+
+@keyframes riseIn {
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 680px) {
+  .hero {
+    padding-top: 1rem;
+  }
+
+  .kv th,
+  .kv td {
+    display: block;
+    width: 100%;
+  }
+
+  .kv tr {
+    border-bottom: 1px solid var(--border);
+  }
+}

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ApoTune Diagnostic Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-shape bg-shape-a" aria-hidden="true"></div>
+  <div class="bg-shape bg-shape-b" aria-hidden="true"></div>
+
+  <header class="hero">
+    <div>
+      <h1>ApoTune Diagnostic Dashboard</h1>
+      <p>Open a diagnostic JSON file and view it in a cleaner, human-friendly format.</p>
+    </div>
+    <div class="hero-actions">
+      <label class="btn btn-primary" for="fileInput">Choose JSON File</label>
+      <input id="fileInput" type="file" accept="application/json,.json">
+    </div>
+  </header>
+
+  <main>
+    <section id="dropZone" class="drop-zone" aria-label="File drop zone">
+      <p>Drag and drop a JSON file here</p>
+      <small>No server needed. This runs fully in your browser.</small>
+    </section>
+
+    <section id="status" class="status" aria-live="polite"></section>
+
+    <section id="summary" class="summary-grid"></section>
+
+    <section class="panel">
+      <h2>Quick Insights</h2>
+      <div id="insights" class="insights"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Structured Data</h2>
+      <div id="structuredData" class="structured"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Tip: You can pin this file and open it directly with a file link like <code>file:///C:/.../diagnostic-dashboard/index.html</code>.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
