@@ -246,7 +246,11 @@ function renderArrayOfObjects(items) {
     keys.forEach((k) => {
       const td = document.createElement('td');
       const value = item[k];
-      td.textContent = isPrimitive(value) ? formatDisplayValue(value) : JSON.stringify(value);
+      if (isPrimitive(value)) {
+        td.textContent = formatDisplayValue(value);
+      } else {
+        td.appendChild(renderComplexCellValue(value));
+      }
       row.appendChild(td);
     });
     tbody.appendChild(row);
@@ -274,6 +278,67 @@ function uniqueKeys(items) {
     Object.keys(item).forEach((key) => set.add(key));
   });
   return Array.from(set);
+}
+
+function renderComplexCellValue(value) {
+  if (Array.isArray(value)) {
+    const container = document.createElement('div');
+    container.className = 'subfields';
+    if (value.length === 0) {
+      container.textContent = '[]';
+      return container;
+    }
+
+    value.forEach((item, index) => {
+      const line = document.createElement('div');
+      line.className = 'subfield';
+      if (isPrimitive(item)) {
+        line.innerHTML = `<span class="subfield-key">[${index}]</span> <span class="subfield-value">${escapeHtml(formatDisplayValue(item))}</span>`;
+      } else if (isPlainObject(item)) {
+        line.innerHTML = `<span class="subfield-key">[${index}]</span>`;
+        line.appendChild(renderObjectSubfields(item));
+      } else {
+        line.innerHTML = `<span class="subfield-key">[${index}]</span> <span class="subfield-value">${escapeHtml(String(item))}</span>`;
+      }
+      container.appendChild(line);
+    });
+
+    return container;
+  }
+
+  if (isPlainObject(value)) {
+    return renderObjectSubfields(value);
+  }
+
+  const fallback = document.createElement('div');
+  fallback.textContent = String(value);
+  return fallback;
+}
+
+function renderObjectSubfields(obj) {
+  const container = document.createElement('div');
+  container.className = 'subfields';
+
+  Object.entries(obj).forEach(([key, nestedValue]) => {
+    const line = document.createElement('div');
+    line.className = 'subfield';
+
+    if (isPrimitive(nestedValue)) {
+      line.innerHTML = `<span class="subfield-key">${escapeHtml(key)}</span>: <span class="subfield-value">${escapeHtml(formatDisplayValue(nestedValue))}</span>`;
+    } else if (isPlainObject(nestedValue)) {
+      line.innerHTML = `<span class="subfield-key">${escapeHtml(key)}</span>:`;
+      line.appendChild(renderObjectSubfields(nestedValue));
+    } else if (Array.isArray(nestedValue)) {
+      line.innerHTML = `<span class="subfield-key">${escapeHtml(key)}</span>:`;
+      line.appendChild(renderComplexCellValue(nestedValue));
+    } else {
+      line.innerHTML = `<span class="subfield-key">${escapeHtml(key)}</span>: <span class="subfield-value">${escapeHtml(String(nestedValue))}</span>`;
+    }
+
+    container.appendChild(line);
+  });
+
+  return container;
 }
 
 function getValueMeta(value) {

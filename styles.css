@@ -255,6 +255,31 @@ summary {
   font-weight: 600;
 }
 
+.subfields {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.subfield {
+  line-height: 1.35;
+}
+
+.subfield .subfields {
+  margin-top: 0.15rem;
+  margin-left: 0.8rem;
+  padding-left: 0.55rem;
+  border-left: 2px solid #e7eef6;
+}
+
+.subfield-key {
+  font-weight: 600;
+  color: #2a4d68;
+}
+
+.subfield-value {
+  color: var(--text);
+}
+
 .array-meta {
   color: var(--muted);
   font-style: italic;
