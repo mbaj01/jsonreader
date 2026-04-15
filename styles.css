@@ -229,10 +229,12 @@ summary {
 
 .node-body {
   padding: 0.7rem 0.8rem;
+  overflow-x: auto;
 }
 
 .kv {
   width: 100%;
+  min-width: 560px;
   border-collapse: collapse;
   font-size: 0.95rem;
 }
@@ -243,6 +245,8 @@ summary {
   text-align: left;
   vertical-align: top;
   padding: 0.45rem;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .kv th {
@@ -273,6 +277,14 @@ footer {
 @media (max-width: 680px) {
   .hero {
     padding-top: 1rem;
+  }
+
+  .node-body {
+    padding: 0.6rem;
+  }
+
+  .kv {
+    min-width: 0;
   }
 
   .kv th,
