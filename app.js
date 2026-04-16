@@ -180,7 +180,7 @@ function createNode(label, value, level) {
     if (value.length === 0) {
       body.innerHTML = '<div class="array-meta">Empty array</div>';
     } else if (value.every((item) => isPlainObject(item))) {
-      body.appendChild(renderArrayOfObjects(value));
+      body.appendChild(renderArrayOfObjects(value, label));
     } else {
       const list = document.createElement('ol');
       value.forEach((item) => {
@@ -225,11 +225,20 @@ function createNode(label, value, level) {
   return details;
 }
 
-function renderArrayOfObjects(items) {
+function renderArrayOfObjects(items, fieldName) {
   const table = document.createElement('table');
   table.className = 'kv';
 
-  const keys = uniqueKeys(items).slice(0, 8);
+  let keys = uniqueKeys(items);
+
+  if (fieldName === 'Dlls') {
+    const priorityKeys = ['Name', 'PluginId', 'PluginName', 'VersionFromFilename'];
+    const prioritized = priorityKeys.filter((k) => keys.includes(k));
+    const remaining = keys.filter((k) => !priorityKeys.includes(k));
+    keys = [...prioritized, ...remaining];
+  }
+
+  keys = keys.slice(0, 8);
   const thead = document.createElement('thead');
   const headerRow = document.createElement('tr');
   keys.forEach((k) => {
@@ -249,7 +258,7 @@ function renderArrayOfObjects(items) {
       if (isPrimitive(value)) {
         td.textContent = formatDisplayValue(value);
       } else {
-        td.appendChild(renderComplexCellValue(value));
+        td.appendChild(renderComplexCellValue(value, k));
       }
       row.appendChild(td);
     });
@@ -280,7 +289,7 @@ function uniqueKeys(items) {
   return Array.from(set);
 }
 
-function renderComplexCellValue(value) {
+function renderComplexCellValue(value, fieldName) {
   if (Array.isArray(value)) {
     const container = document.createElement('div');
     container.className = 'subfields';
@@ -307,12 +316,85 @@ function renderComplexCellValue(value) {
   }
 
   if (isPlainObject(value)) {
+    if (fieldName === 'Ping') {
+      return renderPingSubfields(value);
+    }
+
+    if (fieldName === 'Ports') {
+      return renderPortsSubfields(value);
+    }
+
     return renderObjectSubfields(value);
   }
 
   const fallback = document.createElement('div');
   fallback.textContent = String(value);
   return fallback;
+}
+
+function renderPingSubfields(ping) {
+  const orderedKeys = ['Reachable', 'RoundtripMs', 'Status'];
+  const orderedEntries = [
+    ...orderedKeys
+      .filter((key) => Object.prototype.hasOwnProperty.call(ping, key) && ping[key] !== null)
+      .map((key) => [key, ping[key]]),
+    ...Object.entries(ping).filter(([key, value]) => !orderedKeys.includes(key) && value !== null)
+  ];
+
+  const container = document.createElement('div');
+  container.className = 'subfields';
+
+  orderedEntries.forEach(([key, value]) => {
+    const line = document.createElement('div');
+    line.className = 'subfield';
+
+    let formattedValue = formatDisplayValue(value);
+    if (key === 'Reachable' && typeof value === 'boolean') {
+      formattedValue = value ? 'Yes' : 'No';
+    }
+    if (key === 'RoundtripMs' && typeof value === 'number') {
+      formattedValue = `${value} ms`;
+    }
+
+    line.innerHTML = `<span class="subfield-key">${escapeHtml(key)}</span>: <span class="subfield-value">${escapeHtml(formattedValue)}</span>`;
+    container.appendChild(line);
+  });
+
+  return container;
+}
+
+function renderPortsSubfields(ports) {
+  const entries = Object.entries(ports).sort(([a], [b]) => {
+    const aNum = Number(a);
+    const bNum = Number(b);
+    const aIsNum = Number.isFinite(aNum);
+    const bIsNum = Number.isFinite(bNum);
+
+    if (aIsNum && bIsNum) {
+      return aNum - bNum;
+    }
+    if (aIsNum) {
+      return -1;
+    }
+    if (bIsNum) {
+      return 1;
+    }
+    return a.localeCompare(b);
+  });
+
+  const container = document.createElement('div');
+  container.className = 'subfields';
+
+  entries.forEach(([port, isOpen]) => {
+    const line = document.createElement('div');
+    line.className = 'subfield';
+    const status = isOpen === true ? 'Open' : isOpen === false ? 'Closed' : formatDisplayValue(isOpen);
+
+    line.innerHTML = `<span class="subfield-key">Port ${escapeHtml(port)}</span>: <span class="subfield-value">${escapeHtml(status)}</span>`;
+    container.appendChild(line);
+  });
+
+  return container;
 }
 
 function renderObjectSubfields(obj) {
@@ -327,10 +409,10 @@ function renderObjectSubfields(obj) {
       line.innerHTML = `<span class="subfield-key">${escapeHtml(key)}</span>: <span class="subfield-value">${escapeHtml(formatDisplayValue(nestedValue))}</span>`;
     } else if (isPlainObject(nestedValue)) {
       line.innerHTML = `<span class="subfield-key">${escapeHtml(key)}</span>:`;
-      line.appendChild(renderObjectSubfields(nestedValue));
+      line.appendChild(renderComplexCellValue(nestedValue, key));
     } else if (Array.isArray(nestedValue)) {
       line.innerHTML = `<span class="subfield-key">${escapeHtml(key)}</span>:`;
-      line.appendChild(renderComplexCellValue(nestedValue));
+      line.appendChild(renderComplexCellValue(nestedValue, key));
     } else {
       line.innerHTML = `<span class="subfield-key">${escapeHtml(key)}</span>: <span class="subfield-value">${escapeHtml(String(nestedValue))}</span>`;
     }

@@ -250,9 +250,12 @@ summary {
 }
 
 .kv th {
-  width: 30%;
   color: var(--muted);
   font-weight: 600;
+}
+
+.kv tbody th {
+  width: 30%;
 }
 
 .subfields {
@@ -274,6 +277,7 @@ summary {
 .subfield-key {
   font-weight: 600;
   color: #2a4d68;
+  min-width: 110px;
 }
 
 .subfield-value {
