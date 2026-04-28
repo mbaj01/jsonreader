@@ -1,3 +1,34 @@
+// Dark mode toggle logic
+document.addEventListener('DOMContentLoaded', function () {
+  const toggle = document.getElementById('darkModeToggle');
+  if (!toggle) return;
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const saved = localStorage.getItem('theme');
+  const root = document.documentElement;
+  function setMode(mode) {
+    if (mode === 'dark') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+      toggle.setAttribute('aria-pressed', 'true');
+      toggle.textContent = '☀️ Light Mode';
+    } else {
+      root.classList.remove('dark');
+      root.classList.add('light');
+      toggle.setAttribute('aria-pressed', 'false');
+      toggle.textContent = '🌙 Dark Mode';
+    }
+  }
+  if (saved === 'dark' || (!saved && prefersDark)) {
+    setMode('dark');
+  } else {
+    setMode('light');
+  }
+  toggle.addEventListener('click', function () {
+    const isDark = !root.classList.contains('dark');
+    setMode(isDark ? 'dark' : 'light');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  });
+});
 const statusEl = document.getElementById('status');
 const fileInput = document.getElementById('fileInput');
 const dropZone = document.getElementById('dropZone');
