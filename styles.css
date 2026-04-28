@@ -2,6 +2,8 @@
   --bg: #f5f7fb;
   --surface: #ffffff;
   --surface-soft: #f1f4f9;
+  --heading: #2a4d68;
+  --row-alt: #f6f8fb;
   --text: #17202a;
   --muted: #536171;
   --accent: #0a6e7a;
@@ -17,7 +19,7 @@
   :root:not(.light) {
     --bg: #181c1f;
     --surface: #23272b;
-    --surface-soft: #23272b;
+      --surface-soft: #32454a; /* brighter/cooler header tint for dark mode */
     --text: #f3f6fa;
     --muted: #b2bac6;
     --accent: #3fd0e0;
@@ -33,6 +35,8 @@
   --bg: #f5f7fb;
   --surface: #ffffff;
   --surface-soft: #f1f4f9;
+  --heading: #2a4d68;
+  --row-alt: #f6f8fb;
   --text: #17202a;
   --muted: #536171;
   --accent: #0a6e7a;
@@ -47,7 +51,9 @@
 :root.dark {
   --bg: #181c1f;
   --surface: #23272b;
-  --surface-soft: #23272b;
+  --surface-soft: #32454a;
+  --heading: #cfe8ee;
+  --row-alt: #1b272c;
   --text: #f3f6fa;
   --muted: #b2bac6;
   --accent: #3fd0e0;
@@ -187,7 +193,7 @@ main {
 
 .drop-zone.dragging {
   border-color: var(--accent);
-  background: #e9f8fb;
+  background: var(--surface-soft);
 }
 
 .status {
@@ -227,7 +233,7 @@ main {
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: var(--muted);
+  color: var(--heading);
 }
 
 .card p {
@@ -248,6 +254,7 @@ main {
 .panel h2 {
   margin: 0 0 0.75rem;
   font-size: 1.05rem;
+  color: var(--heading);
 }
 
 .insights {
@@ -270,7 +277,7 @@ details {
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
-  background: #fff;
+  background: var(--surface);
 }
 
 summary {
@@ -278,7 +285,8 @@ summary {
   list-style: none;
   font-weight: 700;
   padding: 0.7rem 0.8rem;
-  background: #f9fbfe;
+  background: var(--surface-soft);
+  color: var(--heading);
 }
 
 .summary-meta {
@@ -307,15 +315,26 @@ summary {
   padding: 0.45rem;
   word-break: normal;
   overflow-wrap: break-word;
+  color: var(--text);
 }
 
 .kv th {
-  color: var(--muted);
+  color: var(--heading);
   font-weight: 600;
 }
 
 .kv tbody th {
   width: 30%;
+}
+
+/* Alternating rows for better separation */
+.kv tr:nth-child(even) td {
+  background: var(--row-alt);
+}
+
+/* Hover highlight */
+.kv tr:hover td {
+  background: color-mix(in srgb, var(--surface) 88%, var(--heading) 12%);
 }
 
 .subfields {
@@ -331,12 +350,12 @@ summary {
   margin-top: 0.15rem;
   margin-left: 0.8rem;
   padding-left: 0.55rem;
-  border-left: 2px solid #e7eef6;
+  border-left: 2px solid var(--border);
 }
 
 .subfield-key {
   font-weight: 600;
-  color: #2a4d68;
+  color: var(--heading);
   min-width: 110px;
 }
 
