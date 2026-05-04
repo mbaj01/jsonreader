@@ -35,6 +35,75 @@ const dropZone = document.getElementById('dropZone');
 const summaryEl = document.getElementById('summary');
 const insightsEl = document.getElementById('insights');
 const structuredEl = document.getElementById('structuredData');
+let currentFileType = null;
+let currentDymoFilters = { source: null, level: null };
+
+// Parser registry: add new parsers here to detect and normalize known JSON shapes
+const parserRegistry = [
+  {
+    name: 'DiagnosticReport',
+    match: (raw, fileName) => {
+      return raw && typeof raw === 'object' && (raw.ReportGeneratedAt || raw.DiagnosticsComplete || raw.SystemInfo);
+    },
+    normalize: (raw) => ({ typeMeta: { detected: 'DiagnosticReport' }, data: raw })
+  },
+  {
+    name: 'DymoLog',
+    match: (raw, fileName) => {
+      // Detect NDJSON-style or array logs produced by DymoTestTool: entries with @t/@mt keys
+      const looksLikeEntry = (it) => it && typeof it === 'object' && ('@t' in it || '@mt' in it || 'SourceContext' in it);
+      if (Array.isArray(raw) && raw.length > 0 && looksLikeEntry(raw[0])) return true;
+      if (looksLikeEntry(raw)) return true;
+      // also consider filename hints
+      if (typeof fileName === 'string' && /dymo/i.test(fileName)) return true;
+      return false;
+    },
+    normalize: (raw) => {
+      const entries = Array.isArray(raw) ? raw : [raw];
+      // filter out pure-separator lines like "=====" or "-----" which are visual only
+      const isSeparator = (e) => {
+        const mt = e && (e['@mt'] || e.Message || e.MessageTemplate || e['@m']);
+        if (!mt || typeof mt !== 'string') return false;
+        return /^\s*[-=]{4,}\s*$/.test(mt);
+      };
+
+      const filtered = entries.filter((e) => !isSeparator(e));
+      const summary = { total: entries.length, filteredOut: entries.length - filtered.length, bySource: {}, byLevel: {}, byMessage: {} };
+      filtered.forEach((e) => {
+        const src = e.SourceContext || e.Source || 'unknown';
+        summary.bySource[src] = (summary.bySource[src] || 0) + 1;
+        const lvl = String(e['@l'] || e.Level || 'info');
+        const lvlKey = lvl || 'info';
+        summary.byLevel[lvlKey] = (summary.byLevel[lvlKey] || 0) + 1;
+        const mt = e['@mt'] || e.MessageTemplate || e['@m'] || e.Message || null;
+        if (mt) summary.byMessage[mt] = (summary.byMessage[mt] || 0) + 1;
+        // try to parse embedded JSON content strings e.g. Content
+        if (typeof e.Content === 'string' && e.Content.trim().startsWith('{')) {
+          try {
+            e.ContentParsed = JSON.parse(e.Content);
+          } catch (err) {
+            // ignore
+          }
+        }
+      });
+
+      return {
+        typeMeta: { detected: 'DymoLog' },
+        data: { DymoLogEntries: filtered, Summary: summary }
+      };
+    }
+  },
+  {
+    name: 'ArrayOfObjects',
+    match: (raw) => Array.isArray(raw) && raw.length > 0 && raw.every((it) => isPlainObject(it)),
+    normalize: (raw) => ({ typeMeta: { detected: 'ArrayOfObjects' }, data: { Items: raw } })
+  },
+  {
+    name: 'GenericObject',
+    match: (raw) => raw && typeof raw === 'object',
+    normalize: (raw) => ({ typeMeta: { detected: 'GenericObject' }, data: raw })
+  }
+];
 
 init();
 
@@ -73,19 +142,71 @@ async function onFileSelected(event) {
 async function readFileFromInput(file) {
   try {
     const text = await file.text();
-    const data = JSON.parse(text);
-    renderDashboard(data, file.name);
+    let raw;
+    try {
+      raw = JSON.parse(text);
+    } catch (jsonErr) {
+      // attempt to parse NDJSON (newline-delimited JSON) as a fallback
+      const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      if (lines.length > 0) {
+        const parsedLines = [];
+        let allParsed = true;
+        for (const line of lines) {
+          try {
+            parsedLines.push(JSON.parse(line));
+          } catch (e) {
+            allParsed = false;
+            break;
+          }
+        }
+        if (allParsed) {
+          raw = parsedLines;
+        } else {
+          throw jsonErr;
+        }
+      } else {
+        throw jsonErr;
+      }
+    }
+    const parsed = parseFile(raw, file.name);
+    renderDashboard(parsed.data, file.name, parsed.typeMeta && parsed.typeMeta.detected);
   } catch (error) {
     setStatus('Invalid JSON file: ' + error.message, 'error');
   }
 }
 
 function renderDashboard(data, sourceLabel) {
-  setStatus('Loaded: ' + sourceLabel, 'ok');
+  // backward-compatible call: allow optional fileType
+  const fileType = arguments.length > 2 ? arguments[2] : undefined;
+  currentFileType = fileType || null;
+  setStatus('Loaded: ' + sourceLabel + (fileType ? ` (${fileType})` : ''), 'ok');
 
-  renderSummary(data);
-  renderInsights(data);
+  // Only show the diagnostic summary and quick insights for known DiagnosticReport files
+  if (fileType === 'DiagnosticReport') {
+    renderSummary(data);
+    renderInsights(data);
+  } else if (fileType === 'DymoLog') {
+    renderDymoSummary(data);
+  } else {
+    // clear the UI regions to avoid showing irrelevant cards/insights
+    summaryEl.innerHTML = '';
+    insightsEl.innerHTML = '';
+  }
+
   renderStructured(data);
+}
+
+function parseFile(raw, fileName) {
+  for (const p of parserRegistry) {
+    try {
+      if (typeof p.match === 'function' && p.match(raw, fileName)) {
+        return p.normalize(raw, fileName) || { typeMeta: { detected: p.name }, data: raw };
+      }
+    } catch (e) {
+      // ignore matcher errors and try next
+    }
+  }
+  return { typeMeta: { detected: 'Unknown' }, data: raw };
 }
 
 function setStatus(message, type) {
@@ -170,6 +291,165 @@ function renderInsights(data) {
   });
 }
 
+function renderDymoSummary(data) {
+  summaryEl.innerHTML = '';
+  insightsEl.innerHTML = '';
+
+  const entries = data.DymoLogEntries || [];
+  const summary = data.Summary || {};
+
+  const total = summary.total || entries.length;
+  const filteredOut = summary.filteredOut || 0;
+  const distinctSources = Object.keys(summary.bySource || {}).length;
+  const errorCount = Object.entries(summary.byLevel || {}).reduce((s, [k, v]) => (k && k.toLowerCase() === 'error' ? s + v : s), 0);
+
+  const cards = [
+    ['Total Entries', String(total)],
+    ['Filtered Separators', String(filteredOut)],
+    ['Errors', String(errorCount)],
+    ['Distinct Sources', String(distinctSources)]
+  ];
+
+  cards.forEach(([title, value], i) => {
+    const card = document.createElement('article');
+    card.className = 'card';
+    card.style.animationDelay = `${i * 55}ms`;
+    card.innerHTML = `<h3>${escapeHtml(title)}</h3><p>${escapeHtml(value)}</p>`;
+    summaryEl.appendChild(card);
+  });
+
+  // top 5 sources
+  const topSources = Object.entries(summary.bySource || {}).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const topMessages = Object.entries(summary.byMessage || {}).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  const sPanel = document.createElement('div');
+  sPanel.className = 'panel';
+  const sHeader = document.createElement('h2');
+  sHeader.textContent = 'Dymo Log Summary';
+  sPanel.appendChild(sHeader);
+
+  // Render the full Summary object (compact structured view) into insights
+  if (summary && typeof summary === 'object') {
+    const summaryNode = createNode('Summary', summary, 0);
+    summaryNode.style.margin = '0.6rem 0 0.8rem';
+    sPanel.appendChild(summaryNode);
+  }
+
+  // Add simple filters: Source and Level
+  const filtersRow = document.createElement('div');
+  filtersRow.style.display = 'flex';
+  filtersRow.style.gap = '0.6rem';
+  filtersRow.style.alignItems = 'center';
+  filtersRow.style.marginTop = '0.6rem';
+
+  const makeSelect = (labelText, options) => {
+    const wrapper = document.createElement('label');
+    wrapper.style.display = 'flex';
+    wrapper.style.flexDirection = 'column';
+    wrapper.style.fontSize = '0.9rem';
+    const label = document.createElement('span');
+    label.textContent = labelText;
+    const sel = document.createElement('select');
+    sel.style.padding = '0.35rem';
+    sel.style.borderRadius = '6px';
+    sel.style.border = '1px solid var(--border)';
+    const allOpt = document.createElement('option');
+    allOpt.value = '';
+    allOpt.textContent = 'All';
+    sel.appendChild(allOpt);
+    options.forEach((o) => {
+      const opt = document.createElement('option');
+      if (typeof o === 'object' && o !== null && 'value' in o) {
+        opt.value = String(o.value);
+        opt.textContent = String(o.label || o.value);
+      } else {
+        const val = String(o).toLowerCase().trim();
+        opt.value = val;
+        opt.textContent = String(o);
+      }
+      sel.appendChild(opt);
+    });
+    wrapper.appendChild(label);
+    wrapper.appendChild(sel);
+    return { wrapper, select: sel };
+  };
+
+  const sourceKeys = Object.keys(summary.bySource || {}).sort();
+  const levelKeys = Object.keys(summary.byLevel || {}).sort();
+  const sourceSel = makeSelect('Filter by Source', sourceKeys);
+  const levelSel = makeSelect('Filter by Level', levelKeys.map((k) => ({ label: k, value: normalizeLevelKey(k) })));
+  const clearBtn = document.createElement('button');
+  clearBtn.className = 'btn';
+  clearBtn.textContent = 'Clear filters';
+  clearBtn.addEventListener('click', () => {
+    sourceSel.select.value = '';
+    levelSel.select.value = '';
+    currentDymoFilters.source = null;
+    currentDymoFilters.level = null;
+    applyDymoFilters();
+  });
+
+  sourceSel.select.addEventListener('change', (e) => {
+    const v = e.target.value || null;
+    currentDymoFilters.source = v;
+    applyDymoFilters();
+  });
+  levelSel.select.addEventListener('change', (e) => {
+    const v = e.target.value || null;
+    currentDymoFilters.level = v;
+    applyDymoFilters();
+  });
+
+  filtersRow.appendChild(sourceSel.wrapper);
+  filtersRow.appendChild(levelSel.wrapper);
+  filtersRow.appendChild(clearBtn);
+  sPanel.appendChild(filtersRow);
+
+
+  // Top Sources removed per user request — Summary object retained
+  insightsEl.appendChild(sPanel);
+  // Ensure the summary is visible at the top of the page
+  try {
+    sPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (e) {}
+}
+
+function createExpandableText(text, maxLen = 120) {
+  const container = document.createElement('div');
+  const short = String(text || '');
+  if (short.length <= maxLen) {
+    const span = document.createElement('span');
+    span.textContent = short;
+    container.appendChild(span);
+    return container;
+  }
+
+  const truncated = document.createElement('span');
+  truncated.className = 'truncated';
+  truncated.textContent = short.slice(0, maxLen) + '…';
+
+  const full = document.createElement('span');
+  full.style.display = 'none';
+  full.textContent = short;
+
+  const btn = document.createElement('button');
+  btn.className = 'expand-btn';
+  btn.textContent = 'Show';
+  btn.addEventListener('click', () => {
+    const isHidden = full.style.display === 'none';
+    full.style.display = isHidden ? '' : 'none';
+    truncated.style.display = isHidden ? 'none' : '';
+    btn.textContent = isHidden ? 'Hide' : 'Show';
+  });
+
+  container.appendChild(truncated);
+  container.appendChild(full);
+  container.appendChild(btn);
+  return container;
+}
+
+
+
 function renderStructured(data) {
   structuredEl.innerHTML = '';
 
@@ -189,6 +469,8 @@ function renderStructured(data) {
   ];
 
   ordered.forEach((key) => {
+    // Hide the Dymo-generated Summary node from the structured view (we show it in Quick Insights)
+    if (currentFileType === 'DymoLog' && key === 'Summary') return;
     const node = createNode(key, data[key], 0);
     structuredEl.appendChild(node);
   });
@@ -241,7 +523,10 @@ function createNode(label, value, level) {
         tbody.appendChild(row);
       });
       primitiveTable.appendChild(tbody);
-      body.appendChild(primitiveTable);
+      const wrap = document.createElement('div');
+      wrap.className = 'table-wrap';
+      wrap.appendChild(primitiveTable);
+      body.appendChild(wrap);
     }
 
     complexEntries.forEach(([k, v]) => {
@@ -257,59 +542,237 @@ function createNode(label, value, level) {
 }
 
 function renderArrayOfObjects(items, fieldName) {
-  const table = document.createElement('table');
-  table.className = 'kv';
+  // First, cluster items by their set of keys (shape). This lets us render separate
+  // tables for rows that share similar fields (e.g., network checks vs printer checks).
+  const clusters = Object.create(null);
+  items.forEach((item) => {
+    const keys = Object.keys(item).sort();
+    const sig = keys.join('|') || '__empty__';
+    if (!clusters[sig]) clusters[sig] = { keys: keys, items: [] };
+    clusters[sig].items.push(item);
+  });
 
-  let keys = uniqueKeys(items);
+  // Helper to render a single table for a specific set of keys
+  function renderTableForKeys(keys, rows) {
+    const table = document.createElement('table');
+    table.className = 'kv';
 
-  if (fieldName === 'Dlls') {
-    const priorityKeys = ['Name', 'PluginId', 'PluginName', 'VersionFromFilename'];
-    const prioritized = priorityKeys.filter((k) => keys.includes(k));
-    const remaining = keys.filter((k) => !priorityKeys.includes(k));
-    keys = [...prioritized, ...remaining];
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    keys.forEach((k) => {
+      const th = document.createElement('th');
+      th.textContent = k;
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    (rows || items).slice(0, 100).forEach((item, idx) => {
+      const row = document.createElement('tr');
+      // If rendering Dymo log entries, annotate rows with the message template for linking/filtering
+      try {
+        if (fieldName === 'DymoLogEntries') {
+          const mt = item['@mt'] || item.MessageTemplate || item['@m'] || item.Message || '';
+          if (mt) row.dataset.msgTemplate = String(mt);
+          const src = item.SourceContext || item.Source || '';
+          if (src) row.dataset.source = String(src).toLowerCase().trim();
+          const lvl = item['@l'] || item.Level || '';
+          if (lvl) row.dataset.level = normalizeLevelKey(lvl);
+          row.id = `dymo-entry-${Math.random().toString(36).slice(2, 9)}`;
+        }
+      } catch (e) {
+        // ignore
+      }
+      keys.forEach((k) => {
+        const td = document.createElement('td');
+        const value = item[k];
+        if (isPrimitive(value)) {
+          td.textContent = formatDisplayValue(value);
+        } else {
+          td.appendChild(renderComplexCellValue(value, k));
+        }
+        row.appendChild(td);
+      });
+      tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+
+    const wrap = document.createElement('div');
+    wrap.className = 'table-wrap';
+    wrap.appendChild(table);
+    return wrap;
   }
 
-  keys = keys.slice(0, 8);
-  const thead = document.createElement('thead');
-  const headerRow = document.createElement('tr');
-  keys.forEach((k) => {
-    const th = document.createElement('th');
-    th.textContent = k;
-    headerRow.appendChild(th);
-  });
-  thead.appendChild(headerRow);
-  table.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
-  items.slice(0, 100).forEach((item) => {
-    const row = document.createElement('tr');
-    keys.forEach((k) => {
-      const td = document.createElement('td');
-      const value = item[k];
-      if (isPrimitive(value)) {
-        td.textContent = formatDisplayValue(value);
-      } else {
-        td.appendChild(renderComplexCellValue(value, k));
-      }
-      row.appendChild(td);
-    });
-    tbody.appendChild(row);
-  });
-
-  table.appendChild(tbody);
-
-  if (items.length > 100) {
+  const sigs = Object.keys(clusters);
+  if (sigs.length > 1) {
     const wrapper = document.createElement('div');
-    wrapper.appendChild(table);
+    wrapper.className = 'clusters';
+    sigs.forEach((sig, idx) => {
+      const c = clusters[sig];
+      const section = document.createElement('section');
+      section.className = 'cluster';
+
+      const headerDiv = document.createElement('div');
+      headerDiv.className = 'section-header';
+      const h4 = document.createElement('h4');
+      h4.textContent = `Group ${idx + 1} — ${c.items.length} rows — ${c.keys.length} cols`;
+      const toggle = document.createElement('button');
+      toggle.className = 'toggle-btn';
+      toggle.textContent = 'Hide';
+      toggle.addEventListener('click', () => {
+        section.classList.toggle('collapsed');
+        toggle.textContent = section.classList.contains('collapsed') ? 'Show' : 'Hide';
+      });
+      headerDiv.appendChild(h4);
+      headerDiv.appendChild(toggle);
+      section.appendChild(headerDiv);
+
+      section.appendChild(renderTableForKeys(c.keys, c.items));
+      wrapper.appendChild(section);
+    });
 
     const note = document.createElement('div');
     note.className = 'array-meta';
-    note.textContent = `Showing first 100 rows of ${items.length}.`;
+    note.textContent = `Showing first 100 rows per group (total ${items.length}).`;
     wrapper.appendChild(note);
     return wrapper;
   }
 
-  return table;
+  // Single cluster -> fall back to grouping by key prefix for readability when many columns
+  const allKeys = uniqueKeys(items);
+
+  function keyBase(key) {
+    if (typeof key !== 'string') return 'other';
+    if (key.startsWith('@')) return 'meta';
+    const m = key.match(/^[a-zA-Z]+/);
+    return m ? m[0].toLowerCase() : 'other';
+  }
+
+  function groupKeys(keys) {
+    const map = Object.create(null);
+    keys.forEach((k) => {
+      const base = keyBase(k);
+      if (!map[base]) map[base] = [];
+      map[base].push(k);
+    });
+    return Object.entries(map).sort((a, b) => b[1].length - a[1].length);
+  }
+
+  if (fieldName === 'Dlls') {
+    const priorityKeys = ['Name', 'PluginId', 'PluginName', 'VersionFromFilename'];
+    const prioritized = priorityKeys.filter((k) => allKeys.includes(k));
+    const remaining = allKeys.filter((k) => !priorityKeys.includes(k));
+    const singleKeys = [...prioritized, ...remaining].slice(0, 8);
+    if (allKeys.length <= 8) {
+      return renderTableForKeys(singleKeys);
+    }
+  }
+
+  if (allKeys.length <= 8) {
+    return renderTableForKeys(allKeys.slice(0, 8));
+  }
+
+  const groups = groupKeys(allKeys);
+  const wrapper = document.createElement('div');
+  wrapper.className = 'grouped-tables';
+  groups.forEach(([groupName, groupKeys]) => {
+    const readable = groupName === 'meta' ? 'Meta' : groupName.charAt(0).toUpperCase() + groupName.slice(1);
+    const section = document.createElement('section');
+    section.className = 'group';
+
+    const headerDiv = document.createElement('div');
+    headerDiv.className = 'section-header';
+    const h4 = document.createElement('h4');
+    h4.textContent = `${readable} (${groupKeys.length} columns)`;
+    const toggle = document.createElement('button');
+    toggle.className = 'toggle-btn';
+    toggle.textContent = 'Hide';
+    toggle.addEventListener('click', () => {
+      section.classList.toggle('collapsed');
+      toggle.textContent = section.classList.contains('collapsed') ? 'Show' : 'Hide';
+    });
+    headerDiv.appendChild(h4);
+    headerDiv.appendChild(toggle);
+    section.appendChild(headerDiv);
+    section.appendChild(renderTableForKeys(groupKeys.slice(0, 8)));
+    wrapper.appendChild(section);
+  });
+
+  const note = document.createElement('div');
+  note.className = 'array-meta';
+  note.textContent = `Showing first 100 rows of ${items.length}. Groups collapsed to 8 columns each.`;
+  wrapper.appendChild(note);
+  return wrapper;
+}
+
+function applyDymoFilters() {
+  const structured = document.getElementById('structuredData');
+  if (!structured) return;
+  const { source, level } = currentDymoFilters || {};
+  const hasAnyFilter = Boolean(source || level);
+
+  // If no filters, clear everything and show all groups
+  if (!hasAnyFilter) {
+    structured.querySelectorAll('tr.filtered-out').forEach((r) => r.classList.remove('filtered-out'));
+    structured.querySelectorAll('.cluster, .group').forEach((s) => (s.style.display = ''));
+    return;
+  }
+
+  // Process each table: filter tbody rows, then show/hide thead based on visible rows
+  structured.querySelectorAll('table').forEach((table) => {
+    const tbodyRows = Array.from(table.querySelectorAll('tbody tr'));
+    let anyVisible = false;
+    tbodyRows.forEach((r) => {
+      const rowSource = r.dataset && r.dataset.source ? r.dataset.source : '';
+      const rowLevel = r.dataset && r.dataset.level ? r.dataset.level : '';
+      const isAnnotated = rowSource !== '' || rowLevel !== '' || (r.dataset && r.dataset.msgTemplate);
+
+      let visible = true;
+      if (!isAnnotated) visible = false;
+      if (visible && source) visible = visible && rowSource === source;
+      if (visible && level) {
+        // special-case: when user selects 'info', show everything except warnings and errors
+        if (level === 'info') {
+          visible = visible && rowLevel !== 'warning' && rowLevel !== 'error';
+        } else {
+          visible = visible && rowLevel === level;
+        }
+      }
+
+      if (visible) {
+        r.classList.remove('filtered-out');
+        anyVisible = true;
+      } else {
+        r.classList.add('filtered-out');
+      }
+    });
+
+    // Show or hide the table header depending on whether any body rows are visible
+    const thead = table.querySelector('thead');
+    if (thead) {
+      const headerRow = thead.querySelector('tr');
+      if (headerRow) {
+        if (anyVisible) headerRow.classList.remove('filtered-out'); else headerRow.classList.add('filtered-out');
+      }
+    }
+  });
+
+  // Hide groups/clusters that have no visible rows
+  structured.querySelectorAll('.cluster, .group').forEach((s) => {
+    const anyVisible = s.querySelectorAll('tbody tr:not(.filtered-out)').length > 0;
+    s.style.display = anyVisible ? '' : 'none';
+  });
+
+  // Report how many matched (use only annotated rows as the denominator)
+  const annotatedRows = Array.from(structured.querySelectorAll('tr')).filter((r) => {
+    return !!(r.dataset && (r.dataset.source || r.dataset.level || r.dataset.msgTemplate));
+  });
+  const matched = Array.from(structured.querySelectorAll('tbody tr:not(.filtered-out)')).filter((r) => {
+    return !!(r.dataset && (r.dataset.source || r.dataset.level || r.dataset.msgTemplate));
+  }).length;
+  setStatus(`Filtered: ${matched} matched (of ${annotatedRows.length} Dymo entries)`, 'ok');
 }
 
 function uniqueKeys(items) {
@@ -521,6 +984,23 @@ function formatIsoDateTime(isoText) {
   });
 
   return `${datePart} ${timePart}`;
+}
+
+function normalizeLevelKey(s) {
+  if (!s) return '';
+  const v = String(s).toLowerCase().trim();
+  const map = {
+    information: 'info',
+    informational: 'info',
+    info: 'info',
+    warn: 'warning',
+    warning: 'warning',
+    error: 'error',
+    err: 'error',
+    critical: 'critical',
+    fatal: 'critical'
+  };
+  return map[v] || v;
 }
 
 function escapeHtml(text) {

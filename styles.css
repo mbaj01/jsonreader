@@ -307,6 +307,67 @@ summary {
   font-size: 0.95rem;
 }
 
+/* Table wrapper to enable horizontal scrolling per table */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0.4rem 0;
+}
+
+.grouped-tables .group,
+.clusters .cluster {
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px dashed var(--border);
+}
+
+/* Section header layout with toggle */
+.section-header,
+.cluster-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.35rem;
+}
+
+.section-header h4,
+.cluster-header h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.toggle-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.collapsed .table-wrap {
+  display: none;
+}
+
+.truncated {
+  display: inline-block;
+  max-width: 60ch;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.expand-btn {
+  margin-left: 0.5rem;
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 600;
+}
+
 .kv th,
 .kv td {
   border-bottom: 1px solid var(--border);
@@ -335,6 +396,17 @@ summary {
 /* Hover highlight */
 .kv tr:hover td {
   background: color-mix(in srgb, var(--surface) 88%, var(--heading) 12%);
+}
+
+/* Highlighted row when jumped-to */
+.highlight td {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface) 82%);
+  transition: background 200ms ease;
+}
+
+/* Filtered-out rows when applying message filter */
+.filtered-out {
+  display: none !important;
 }
 
 .subfields {
